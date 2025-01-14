@@ -38,12 +38,42 @@ class App{
         this._setupLights();
         this._setupControls();
         this._loadCompleted = false;
-        manager.onProgress = (url,loaded,total)=>{
-            window.Android.loading(loaded/total*100);
-        }
-        manager.onLoad = ()=>{
-            window.Android.webStart();
+        manager.onProgress = (url, loaded, total) => {
+            this._sendToPlatform("loading", { progress: (loaded / total) * 100 });
+        };
+
+        manager.onLoad = () => {
+            this._sendToPlatform("webStart", null);
             this._render();
+        };
+
+    }
+    
+    _sendToPlatform(method, data) {
+        if (typeof window.Android !== "undefined") {
+            // Android 메시지 처리
+            if (method === "loading") {
+                window.Android.loading(data.progress);
+            } else if (method === "webStart") {
+                window.Android.webStart();
+            } else if (method === "log") {
+                window.Android.log(data.message);
+            } else if (method === "getBlob") {
+                window.Android.getBlob(data.base64);
+            }
+        } else if (typeof window.webkit !== "undefined" && typeof window.webkit.messageHandlers !== "undefined") {
+            // iOS 메시지 처리
+            if (method === "loading") {
+                window.webkit.messageHandlers.loading.postMessage(data.progress);
+            } else if (method === "webStart") {
+                window.webkit.messageHandlers.webStart.postMessage(null);
+            } else if (method === "log") {
+                window.webkit.messageHandlers.log.postMessage(data.message);
+            } else if (method === "getBlob") {
+                window.webkit.messageHandlers.getBlob.postMessage(data.base64);
+            }
+        } else {
+            console.log(`[Platform] ${method}:`, data);
         }
     }
     _loadModels(location,flip,rotation,pivot,axes,name){
